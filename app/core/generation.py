@@ -73,7 +73,7 @@ FEW_SHOT_EXAMPLES = [
     {
         "query": "What do employees think about remote work?",
         "context": "I love the flexibility... saves 2 hours commuting... miss team collaboration... productivity is up...",
-        "output": '{"executive_summary": "Employees broadly value remote work for flexibility and productivity gains, though collaboration remains a concern.", "themes": [{"theme": "Flexibility & Work-Life Balance", "summary": "Employees appreciate the ability to manage their schedules.", "supporting_responses": ["I love the flexibility"], "response_count": 1, "confidence": 0.6}]}'
+        "output": '{"executive_summary": "Employees broadly value remote work for flexibility and productivity gains, though collaboration remains a concern.", "themes": [{"theme": "Flexibility & Work-Life Balance", "summary": "Employees appreciate the ability to manage their schedules.", "supporting_responses": ["I love the flexibility"], "response_count": 1, "confidence": 0.6}]}',
     }
 ]
 
@@ -82,7 +82,9 @@ def build_few_shot_prefix() -> str:
     """Build few-shot examples string."""
     examples = []
     for ex in FEW_SHOT_EXAMPLES:
-        examples.append(f"EXAMPLE:\nQuery: {ex['query']}\nContext: {ex['context']}\nOutput: {ex['output']}")
+        examples.append(
+            f"EXAMPLE:\nQuery: {ex['query']}\nContext: {ex['context']}\nOutput: {ex['output']}"
+        )
     return "\n\n".join(examples)
 
 
@@ -96,28 +98,35 @@ def apply_guardrails(text: str, query: str) -> Dict[str, Any]:
 
     # Input guardrail: reject off-topic queries
     off_topic_patterns = [
-        r'\b(password|credit card|ssn|social security)\b',
-        r'\b(hack|exploit|inject)\b',
+        r"\b(password|credit card|ssn|social security)\b",
+        r"\b(hack|exploit|inject)\b",
     ]
     for pattern in off_topic_patterns:
         if re.search(pattern, query, re.IGNORECASE):
             guardrail_flags.append(f"Input blocked: matched pattern '{pattern}'")
 
     # Output guardrail: check for uncertainty markers
-    uncertainty_phrases = ["I think", "I believe", "probably", "might be", "could be", "I'm not sure"]
+    uncertainty_phrases = [
+        "I think",
+        "I believe",
+        "probably",
+        "might be",
+        "could be",
+        "I'm not sure",
+    ]
     for phrase in uncertainty_phrases:
         if phrase.lower() in text.lower():
-            guardrail_flags.append(f"Uncertainty detected: '{phrase}' — verify with source data")
+            guardrail_flags.append(
+                f"Uncertainty detected: '{phrase}' — verify with source data"
+            )
 
-    return {
-        "flagged": len(guardrail_flags) > 0,
-        "flags": guardrail_flags
-    }
+    return {"flagged": len(guardrail_flags) > 0, "flags": guardrail_flags}
 
 
 # ──────────────────────────────────────────────
 # CORE GENERATION
 # ──────────────────────────────────────────────
+
 
 class SummaryGenerator:
     """
@@ -140,7 +149,7 @@ class SummaryGenerator:
         query: str,
         chunks: List[RetrievedChunk],
         max_themes: int = 5,
-        use_strong_model: bool = False
+        use_strong_model: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate executive summary with theme extraction.
@@ -161,13 +170,11 @@ class SummaryGenerator:
                 "themes": [],
                 "guardrail_flags": guardrail_result["flags"],
                 "model": model,
-                "latency_ms": 0
+                "latency_ms": 0,
             }
 
         prompt = SUMMARIZE_TEMPLATE.format(
-            query=query,
-            context=context,
-            max_themes=max_themes
+            query=query, context=context, max_themes=max_themes
         )
 
         few_shot = build_few_shot_prefix()
@@ -177,15 +184,19 @@ class SummaryGenerator:
                 model=model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"{few_shot}\n\nNOW ANALYZE:\n{prompt}"}
+                    {
+                        "role": "user",
+                        "content": f"{few_shot}\n\nNOW ANALYZE:\n{prompt}",
+                    },
                 ],
-                temperature=0.1,       # Low temp for factual consistency
+                temperature=0.1,  # Low temp for factual consistency
                 max_tokens=2000,
-                response_format={"type": "json_object"}  # Force JSON output
+                response_format={"type": "json_object"},  # Force JSON output
             )
 
             raw_output = response.choices[0].message.content
             import json
+
             result = json.loads(raw_output)
 
             # Post-generation guardrail
@@ -194,10 +205,7 @@ class SummaryGenerator:
 
         except Exception as e:
             logger.error(f"Generation failed: {e}")
-            result = {
-                "executive_summary": f"Generation error: {str(e)}",
-                "themes": []
-            }
+            result = {"executive_summary": f"Generation error: {str(e)}", "themes": []}
 
         latency_ms = (time.perf_counter() - start) * 1000
         result["model"] = model
@@ -209,22 +217,33 @@ class SummaryGenerator:
 # LANGCHAIN AGENT WITH TOOL-CALLING
 # ──────────────────────────────────────────────
 
+
 def make_sql_tool(db_connection=None):
     """Tool: query a SQL database for structured survey metadata."""
+
     def run_sql(query: str) -> str:
         # Stub: in production, connect to PostgreSQL
         return f"[SQL Tool] Query executed: {query[:100]}. Results: (stub - connect PostgreSQL)"
-    return Tool(name="sql_query", func=run_sql,
-                description="Query survey metadata from PostgreSQL. Use for counts, filters, date ranges.")
+
+    return Tool(
+        name="sql_query",
+        func=run_sql,
+        description="Query survey metadata from PostgreSQL. Use for counts, filters, date ranges.",
+    )
 
 
 def make_rag_tool(retriever):
     """Tool: semantic search over survey responses."""
+
     def run_rag(query: str) -> str:
         chunks, _ = retriever.retrieve(query, top_k=5, mode="hybrid")
         return "\n".join([f"- {c.text[:200]}" for c in chunks])
-    return Tool(name="semantic_search", func=run_rag,
-                description="Semantic search over survey responses. Use for open-ended theme discovery.")
+
+    return Tool(
+        name="semantic_search",
+        func=run_rag,
+        description="Semantic search over survey responses. Use for open-ended theme discovery.",
+    )
 
 
 class SurveyAnalysisAgent:
@@ -235,9 +254,7 @@ class SurveyAnalysisAgent:
 
     def __init__(self, retriever=None):
         self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=0,
-            api_key=settings.OPENAI_API_KEY
+            model=settings.OPENAI_MODEL, temperature=0, api_key=settings.OPENAI_API_KEY
         )
         self.retriever = retriever
 
@@ -246,17 +263,22 @@ class SurveyAnalysisAgent:
             tools.append(make_rag_tool(retriever))
         tools.append(make_sql_tool())
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a survey analysis agent. Use your tools to:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """You are a survey analysis agent. Use your tools to:
 1. Search for relevant survey responses using semantic_search
 2. Query metadata using sql_query when you need counts or filters
 3. Synthesize findings into a clear executive answer
 
-Always cite which tool provided the evidence."""),
-            MessagesPlaceholder("chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder("agent_scratchpad")
-        ])
+Always cite which tool provided the evidence.""",
+                ),
+                MessagesPlaceholder("chat_history", optional=True),
+                ("human", "{input}"),
+                MessagesPlaceholder("agent_scratchpad"),
+            ]
+        )
 
         agent = create_openai_tools_agent(self.llm, tools, prompt)
         self.executor = AgentExecutor(
@@ -264,17 +286,16 @@ Always cite which tool provided the evidence."""),
             tools=tools,
             verbose=True,
             max_iterations=5,
-            handle_parsing_errors=True
+            handle_parsing_errors=True,
         )
 
     def run(self, query: str, chat_history: List = None) -> Dict[str, Any]:
         """Run multi-step agent reasoning."""
         start = time.perf_counter()
         try:
-            result = self.executor.invoke({
-                "input": query,
-                "chat_history": chat_history or []
-            })
+            result = self.executor.invoke(
+                {"input": query, "chat_history": chat_history or []}
+            )
             output = result.get("output", "")
         except Exception as e:
             logger.error(f"Agent error: {e}")

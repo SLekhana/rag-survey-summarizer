@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # ROUGE EVALUATION
 # ──────────────────────────────────────────────
 
+
 def compute_rouge(hypothesis: str, references: List[str]) -> Dict[str, float]:
     """
     Compute ROUGE-1, ROUGE-2, ROUGE-L F1 scores.
@@ -49,10 +50,9 @@ def compute_rouge(hypothesis: str, references: List[str]) -> Dict[str, float]:
 # THEME DETECTION ACCURACY
 # ──────────────────────────────────────────────
 
+
 def compute_theme_accuracy(
-    predicted_themes: List[str],
-    ground_truth_themes: List[str],
-    threshold: float = 0.5
+    predicted_themes: List[str], ground_truth_themes: List[str], threshold: float = 0.5
 ) -> float:
     """
     Compute theme detection accuracy via TF-IDF cosine similarity matching.
@@ -72,8 +72,8 @@ def compute_theme_accuracy(
     except Exception:
         return 0.0
 
-    pred_matrix = tfidf_matrix[:len(predicted_themes)]
-    gt_matrix = tfidf_matrix[len(predicted_themes):]
+    pred_matrix = tfidf_matrix[: len(predicted_themes)]
+    gt_matrix = tfidf_matrix[len(predicted_themes) :]
 
     # For each GT theme, check if any predicted theme matches
     sim_matrix = cosine_similarity(gt_matrix, pred_matrix)
@@ -87,17 +87,14 @@ def compute_theme_accuracy(
 # ──────────────────────────────────────────────
 
 HALLUCINATION_PATTERNS = [
-    r'\b(always|never|all|every|none|everyone|nobody)\b',
-    r'\b(definitely|certainly|absolutely|guaranteed)\b',
-    r'\b(\d+%)\b',  # Specific percentages not in source
-    r'\b(research shows|studies indicate|experts say)\b',
+    r"\b(always|never|all|every|none|everyone|nobody)\b",
+    r"\b(definitely|certainly|absolutely|guaranteed)\b",
+    r"\b(\d+%)\b",  # Specific percentages not in source
+    r"\b(research shows|studies indicate|experts say)\b",
 ]
 
 
-def compute_hallucination_score(
-    generated_text: str,
-    source_texts: List[str]
-) -> float:
+def compute_hallucination_score(generated_text: str, source_texts: List[str]) -> float:
     """
     Estimate hallucination likelihood.
     Score 0.0 = likely grounded, 1.0 = likely hallucinated.
@@ -131,6 +128,7 @@ def compute_hallucination_score(
 # TF-IDF BASELINE
 # ──────────────────────────────────────────────
 
+
 class TFIDFBaseline:
     """
     TF-IDF retrieval baseline for comparison against hybrid RAG.
@@ -138,9 +136,7 @@ class TFIDFBaseline:
 
     def __init__(self):
         self.vectorizer = TfidfVectorizer(
-            ngram_range=(1, 2),
-            stop_words="english",
-            max_features=50000
+            ngram_range=(1, 2), stop_words="english", max_features=50000
         )
         self.tfidf_matrix = None
         self.corpus_ids: List[str] = []
@@ -158,12 +154,15 @@ class TFIDFBaseline:
         query_vec = self.vectorizer.transform([query])
         scores = cosine_similarity(query_vec, self.tfidf_matrix)[0]
         top_indices = np.argsort(scores)[::-1][:top_k]
-        return [(self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0]
+        return [
+            (self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0
+        ]
 
 
 # ──────────────────────────────────────────────
 # CONTROLLED EXPERIMENT RUNNER
 # ──────────────────────────────────────────────
+
 
 @dataclass
 class ExperimentResult:
@@ -200,12 +199,14 @@ class ExperimentRunner:
         ground_truth_themes: List[str],
         ground_truth_summary: Optional[str] = None,
         top_k: int = 10,
-        mode: str = "hybrid"
+        mode: str = "hybrid",
     ) -> ExperimentResult:
         """Run a single experiment for one mode."""
         start = time.perf_counter()
 
-        chunks, retrieval_latency = self.retriever.retrieve(query, top_k=top_k, mode=mode)
+        chunks, retrieval_latency = self.retriever.retrieve(
+            query, top_k=top_k, mode=mode
+        )
         source_texts = [c.text for c in chunks]
 
         gen_result = self.generator.generate(query, chunks)
@@ -214,7 +215,10 @@ class ExperimentRunner:
 
         latency_ms = (time.perf_counter() - start) * 1000
 
-        rouge = compute_rouge(executive_summary, [ground_truth_summary] if ground_truth_summary else ground_truth_themes)
+        rouge = compute_rouge(
+            executive_summary,
+            [ground_truth_summary] if ground_truth_summary else ground_truth_themes,
+        )
         theme_acc = compute_theme_accuracy(predicted_themes, ground_truth_themes)
         hallucination = compute_hallucination_score(executive_summary, source_texts)
 
@@ -226,7 +230,7 @@ class ExperimentRunner:
             theme_accuracy=theme_acc,
             hallucination_score=hallucination,
             latency_ms=latency_ms,
-            retrieved_count=len(chunks)
+            retrieved_count=len(chunks),
         )
 
     def run_all_modes(
@@ -234,7 +238,7 @@ class ExperimentRunner:
         query: str,
         ground_truth_themes: List[str],
         ground_truth_summary: Optional[str] = None,
-        top_k: int = 10
+        top_k: int = 10,
     ) -> Dict[str, Any]:
         """
         Compare all retrieval modes + TF-IDF baseline.
@@ -245,26 +249,37 @@ class ExperimentRunner:
 
         for mode in modes:
             try:
-                result = self.run_single(query, ground_truth_themes, ground_truth_summary, top_k, mode)
+                result = self.run_single(
+                    query, ground_truth_themes, ground_truth_summary, top_k, mode
+                )
                 results[mode] = result
-                logger.info(f"[{mode}] ROUGE-1: {result.rouge_1:.3f}, Theme Acc: {result.theme_accuracy:.3f}, Latency: {result.latency_ms:.0f}ms")
+                logger.info(
+                    f"[{mode}] ROUGE-1: {result.rouge_1:.3f}, Theme Acc: {result.theme_accuracy:.3f}, Latency: {result.latency_ms:.0f}ms"
+                )
             except Exception as e:
                 logger.error(f"Experiment failed for mode {mode}: {e}")
 
         # TF-IDF baseline
         try:
             tfidf_results = self.tfidf.search(query, top_k=top_k)
-            tfidf_texts = [self.tfidf.corpus_texts[self.tfidf.corpus_ids.index(cid)]
-                          for cid, _ in tfidf_results if cid in self.tfidf.corpus_ids]
+            tfidf_texts = [
+                self.tfidf.corpus_texts[self.tfidf.corpus_ids.index(cid)]
+                for cid, _ in tfidf_results
+                if cid in self.tfidf.corpus_ids
+            ]
             tfidf_themes_raw = " ".join(tfidf_texts[:3])
-            tfidf_theme_acc = compute_theme_accuracy([tfidf_themes_raw[:200]], ground_truth_themes)
+            tfidf_theme_acc = compute_theme_accuracy(
+                [tfidf_themes_raw[:200]], ground_truth_themes
+            )
             results["tfidf_baseline"] = ExperimentResult(
                 mode="tfidf_baseline",
-                rouge_1=0.0, rouge_2=0.0, rouge_l=0.0,
+                rouge_1=0.0,
+                rouge_2=0.0,
+                rouge_l=0.0,
                 theme_accuracy=tfidf_theme_acc,
                 hallucination_score=0.0,
                 latency_ms=0.0,
-                retrieved_count=len(tfidf_results)
+                retrieved_count=len(tfidf_results),
             )
             logger.info(f"[TF-IDF baseline] Theme Acc: {tfidf_theme_acc:.3f}")
         except Exception as e:
@@ -274,12 +289,16 @@ class ExperimentRunner:
         best_mode = max(
             [m for m in modes if m in results],
             key=lambda m: results[m].theme_accuracy,
-            default="hybrid"
+            default="hybrid",
         )
 
         # Compute improvement over TF-IDF
-        baseline_acc = results.get("tfidf_baseline", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)).theme_accuracy
-        hybrid_acc = results.get("hybrid", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)).theme_accuracy
+        baseline_acc = results.get(
+            "tfidf_baseline", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)
+        ).theme_accuracy
+        hybrid_acc = results.get(
+            "hybrid", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)
+        ).theme_accuracy
         improvement = ((hybrid_acc - baseline_acc) / max(baseline_acc, 0.01)) * 100
 
         return {
@@ -287,5 +306,5 @@ class ExperimentRunner:
             "results": {k: vars(v) for k, v in results.items()},
             "best_mode": best_mode,
             "improvement_over_tfidf_pct": round(improvement, 1),
-            "target_met": improvement >= 20.0
+            "target_met": improvement >= 20.0,
         }

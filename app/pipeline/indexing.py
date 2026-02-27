@@ -34,8 +34,8 @@ class FAISSIndex:
         self.nlist = nlist or settings.FAISS_NLIST
         self.nprobe = settings.FAISS_NPROBE
         self.index = None
-        self.id_map: Dict[int, str] = {}      # faiss int id → chunk id
-        self.chunk_map: Dict[str, str] = {}    # chunk id → text
+        self.id_map: Dict[int, str] = {}  # faiss int id → chunk id
+        self.chunk_map: Dict[str, str] = {}  # chunk id → text
         self._next_id = 0
 
     def build(self, embeddings: np.ndarray, chunk_ids: List[str], texts: List[str]):
@@ -44,7 +44,9 @@ class FAISSIndex:
         logger.info(f"Building FAISS IVF index with {n} vectors, nlist={self.nlist}")
 
         # IVF flat index (exact distance within cells)
-        quantizer = faiss.IndexFlatIP(self.dim)  # Inner product (cosine with normalized vecs)
+        quantizer = faiss.IndexFlatIP(
+            self.dim
+        )  # Inner product (cosine with normalized vecs)
         self.index = faiss.IndexIVFFlat(quantizer, self.dim, min(self.nlist, n))
         self.index.nprobe = self.nprobe
 
@@ -73,7 +75,9 @@ class FAISSIndex:
             self.chunk_map[cid] = text
         self._next_id += len(embeddings)
 
-    def search(self, query_embedding: np.ndarray, top_k: int = 10) -> List[Tuple[str, float]]:
+    def search(
+        self, query_embedding: np.ndarray, top_k: int = 10
+    ) -> List[Tuple[str, float]]:
         """
         Search for nearest neighbors.
         Returns list of (chunk_id, score) sorted by score desc.
@@ -96,7 +100,14 @@ class FAISSIndex:
         Path(path).mkdir(parents=True, exist_ok=True)
         faiss.write_index(self.index, f"{path}/index.faiss")
         with open(f"{path}/maps.pkl", "wb") as f:
-            pickle.dump({"id_map": self.id_map, "chunk_map": self.chunk_map, "next_id": self._next_id}, f)
+            pickle.dump(
+                {
+                    "id_map": self.id_map,
+                    "chunk_map": self.chunk_map,
+                    "next_id": self._next_id,
+                },
+                f,
+            )
         logger.info(f"FAISS index saved to {path}")
 
     def load(self, path: str = None):
@@ -130,13 +141,14 @@ class ChromaStore:
     def __init__(self):
         self.client = chromadb.PersistentClient(
             path=settings.CHROMA_PERSIST_DIR,
-            settings=ChromaSettings(anonymized_telemetry=False)
+            settings=ChromaSettings(anonymized_telemetry=False),
         )
         self.collection = self.client.get_or_create_collection(
-            name=settings.CHROMA_COLLECTION,
-            metadata={"hnsw:space": "cosine"}
+            name=settings.CHROMA_COLLECTION, metadata={"hnsw:space": "cosine"}
         )
-        logger.info(f"ChromaDB collection '{settings.CHROMA_COLLECTION}' ready: {self.collection.count()} docs")
+        logger.info(
+            f"ChromaDB collection '{settings.CHROMA_COLLECTION}' ready: {self.collection.count()} docs"
+        )
 
     def add(self, chunks: List[Chunk]):
         """Add chunks with embeddings to ChromaDB."""
@@ -146,30 +158,30 @@ class ChromaStore:
         ids = [c.id for c in chunks]
         embeddings = [c.embedding.tolist() for c in chunks]
         documents = [c.text for c in chunks]
-        metadatas = [{
-            **(c.metadata or {}),
-            "schema_version": c.schema_version,
-            "chunk_index": c.chunk_index,
-            "doc_id": c.doc_id
-        } for c in chunks]
+        metadatas = [
+            {
+                **(c.metadata or {}),
+                "schema_version": c.schema_version,
+                "chunk_index": c.chunk_index,
+                "doc_id": c.doc_id,
+            }
+            for c in chunks
+        ]
 
         # Upsert in batches of 500 (ChromaDB limit)
         batch_size = 500
         for i in range(0, len(ids), batch_size):
             self.collection.upsert(
-                ids=ids[i:i+batch_size],
-                embeddings=embeddings[i:i+batch_size],
-                documents=documents[i:i+batch_size],
-                metadatas=metadatas[i:i+batch_size]
+                ids=ids[i : i + batch_size],
+                embeddings=embeddings[i : i + batch_size],
+                documents=documents[i : i + batch_size],
+                metadatas=metadatas[i : i + batch_size],
             )
 
         logger.info(f"Added {len(chunks)} chunks to ChromaDB")
 
     def query(
-        self,
-        query_embedding: np.ndarray,
-        top_k: int = 10,
-        where: Optional[Dict] = None
+        self, query_embedding: np.ndarray, top_k: int = 10, where: Optional[Dict] = None
     ) -> List[Tuple[str, str, float]]:
         """
         Query ChromaDB.
@@ -178,7 +190,7 @@ class ChromaStore:
         kwargs = {
             "query_embeddings": [query_embedding.tolist()],
             "n_results": min(top_k, max(1, self.collection.count())),
-            "include": ["documents", "distances", "metadatas"]
+            "include": ["documents", "distances", "metadatas"],
         }
         if where:
             kwargs["where"] = where
@@ -188,9 +200,7 @@ class ChromaStore:
         output = []
         if results["ids"] and results["ids"][0]:
             for cid, doc, dist in zip(
-                results["ids"][0],
-                results["documents"][0],
-                results["distances"][0]
+                results["ids"][0], results["documents"][0], results["distances"][0]
             ):
                 # ChromaDB cosine distance: 0 = identical, 2 = opposite
                 # Convert to similarity score 0-1

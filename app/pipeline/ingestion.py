@@ -40,7 +40,8 @@ def chunk_text(text: str, chunk_size: int = None, overlap: int = None) -> List[s
 
     # Split on sentence boundaries
     import re
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
 
     chunks = []
     current_chunk = []
@@ -81,7 +82,9 @@ class EmbeddingPipeline:
         self.model = SentenceTransformer(settings.EMBEDDING_MODEL)
         self.dim = settings.EMBEDDING_DIM
 
-    def embed(self, texts: List[str], batch_size: int = 64, show_progress: bool = False) -> np.ndarray:
+    def embed(
+        self, texts: List[str], batch_size: int = 64, show_progress: bool = False
+    ) -> np.ndarray:
         """
         Embed a list of texts.
         Returns float32 numpy array of shape (N, dim).
@@ -91,7 +94,7 @@ class EmbeddingPipeline:
             batch_size=batch_size,
             show_progress_bar=show_progress,
             convert_to_numpy=True,
-            normalize_embeddings=True  # L2 normalize for cosine similarity
+            normalize_embeddings=True,  # L2 normalize for cosine similarity
         )
         return embeddings.astype(np.float32)
 
@@ -111,9 +114,7 @@ class IngestionPipeline:
         self.embedder = embedding_pipeline or EmbeddingPipeline()
 
     def process(
-        self,
-        documents: List[Dict[str, Any]],
-        batch_size: int = 32
+        self, documents: List[Dict[str, Any]], batch_size: int = 32
     ) -> Tuple[List[Chunk], int, int]:
         """
         Process documents into embedded chunks.
@@ -150,7 +151,7 @@ class IngestionPipeline:
                         doc_id=doc_id,
                         chunk_index=i,
                         metadata={**metadata, "doc_id": doc_id, "chunk_index": i},
-                        schema_version=schema_version
+                        schema_version=schema_version,
                     )
                     all_chunks.append(chunk)
 
@@ -164,9 +165,13 @@ class IngestionPipeline:
         if all_chunks:
             logger.info(f"Embedding {len(all_chunks)} chunks...")
             texts = [c.text for c in all_chunks]
-            embeddings = self.embedder.embed(texts, batch_size=batch_size, show_progress=True)
+            embeddings = self.embedder.embed(
+                texts, batch_size=batch_size, show_progress=True
+            )
             for chunk, emb in zip(all_chunks, embeddings):
                 chunk.embedding = emb
 
-        logger.info(f"Ingestion complete: {ingested} docs → {len(all_chunks)} chunks, {failed} failed")
+        logger.info(
+            f"Ingestion complete: {ingested} docs → {len(all_chunks)} chunks, {failed} failed"
+        )
         return all_chunks, ingested, failed

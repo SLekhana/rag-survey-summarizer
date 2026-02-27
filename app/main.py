@@ -20,11 +20,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.models.schemas import (
-    IngestRequest, IngestResponse,
-    SearchRequest, SearchResponse, SearchResult,
-    SummarizeRequest, SummarizeResponse, ThemeSummary,
-    EvaluationRequest, EvaluationResponse, EvaluationResult,
-    UsageStats, HealthResponse
+    IngestRequest,
+    IngestResponse,
+    SearchRequest,
+    SearchResponse,
+    SearchResult,
+    SummarizeRequest,
+    SummarizeResponse,
+    ThemeSummary,
+    EvaluationRequest,
+    EvaluationResponse,
+    EvaluationResult,
+    UsageStats,
+    HealthResponse,
 )
 from app.pipeline.ingestion import IngestionPipeline, EmbeddingPipeline
 from app.pipeline.indexing import FAISSIndex, ChromaStore
@@ -68,7 +76,7 @@ app = FastAPI(
     title=settings.APP_TITLE,
     description="LLM-powered RAG system for survey response summarization",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -93,12 +101,14 @@ async def track_usage(request: Request, call_next):
     usage_stats["total_requests"] += 1
     usage_stats[f"latency_sum:{endpoint}"] += latency_ms
 
-    request_log.append({
-        "endpoint": endpoint,
-        "method": request.method,
-        "latency_ms": round(latency_ms, 2),
-        "status": response.status_code
-    })
+    request_log.append(
+        {
+            "endpoint": endpoint,
+            "method": request.method,
+            "latency_ms": round(latency_ms, 2),
+            "status": response.status_code,
+        }
+    )
     if len(request_log) > 1000:
         request_log.pop(0)
 
@@ -109,6 +119,7 @@ async def track_usage(request: Request, call_next):
 # ROUTES
 # ──────────────────────────────────────────────
 
+
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health():
     return HealthResponse(
@@ -116,7 +127,7 @@ async def health():
         version="1.0.0",
         faiss_docs=faiss_index.total,
         chroma_docs=chroma_store.total,
-        schema_version=settings.SCHEMA_VERSION
+        schema_version=settings.SCHEMA_VERSION,
     )
 
 
@@ -131,7 +142,9 @@ async def ingest(request: IngestRequest):
     start = time.perf_counter()
 
     docs = [doc.dict() for doc in request.documents]
-    chunks, ingested, failed = ingestion_pipeline.process(docs, batch_size=request.batch_size)
+    chunks, ingested, failed = ingestion_pipeline.process(
+        docs, batch_size=request.batch_size
+    )
 
     if chunks:
         chunk_ids = [c.id for c in chunks]
@@ -150,7 +163,7 @@ async def ingest(request: IngestRequest):
         ingested=ingested,
         failed=failed,
         schema_version=settings.SCHEMA_VERSION,
-        duration_ms=round(duration_ms, 2)
+        duration_ms=round(duration_ms, 2),
     )
 
 
@@ -161,13 +174,15 @@ async def search(request: SearchRequest):
     Modes: sparse (BM25) | dense (FAISS) | hybrid (RRF fusion)
     """
     if faiss_index.total == 0 and retriever.bm25.total == 0:
-        raise HTTPException(status_code=400, detail="No documents indexed. POST to /ingest first.")
+        raise HTTPException(
+            status_code=400, detail="No documents indexed. POST to /ingest first."
+        )
 
     chunks, latency_ms = retriever.retrieve(
         query=request.query,
         top_k=request.top_k,
         mode=request.mode.value,
-        filters=request.filters
+        filters=request.filters,
     )
 
     usage_stats[f"mode:{request.mode.value}"] += 1
@@ -178,7 +193,7 @@ async def search(request: SearchRequest):
             text=c.text,
             score=round(c.score, 4),
             retrieval_mode=c.retrieval_mode,
-            metadata=c.metadata or {}
+            metadata=c.metadata or {},
         )
         for c in chunks
     ]
@@ -187,7 +202,7 @@ async def search(request: SearchRequest):
         query=request.query,
         results=results,
         mode=request.mode,
-        latency_ms=round(latency_ms, 2)
+        latency_ms=round(latency_ms, 2),
     )
 
 
@@ -198,30 +213,29 @@ async def summarize(request: SummarizeRequest):
     Includes ROUGE evaluation against retrieved context as self-reference.
     """
     if faiss_index.total == 0 and retriever.bm25.total == 0:
-        raise HTTPException(status_code=400, detail="No documents indexed. POST to /ingest first.")
+        raise HTTPException(
+            status_code=400, detail="No documents indexed. POST to /ingest first."
+        )
 
     chunks, retrieval_latency = retriever.retrieve(
-        query=request.query,
-        top_k=request.top_k,
-        mode=request.mode.value
+        query=request.query, top_k=request.top_k, mode=request.mode.value
     )
 
     if not chunks:
-        raise HTTPException(status_code=404, detail="No relevant responses found for this query.")
+        raise HTTPException(
+            status_code=404, detail="No relevant responses found for this query."
+        )
 
     gen_result = generator.generate(
         query=request.query,
         chunks=chunks,
         max_themes=request.max_themes,
-        use_strong_model=request.use_strong_model
+        use_strong_model=request.use_strong_model,
     )
 
     # ROUGE self-evaluation vs retrieved context
     source_texts = [c.text for c in chunks[:3]]
-    rouge_scores = compute_rouge(
-        gen_result.get("executive_summary", ""),
-        source_texts
-    )
+    rouge_scores = compute_rouge(gen_result.get("executive_summary", ""), source_texts)
 
     themes = [
         ThemeSummary(
@@ -229,7 +243,7 @@ async def summarize(request: SummarizeRequest):
             summary=t.get("summary", ""),
             supporting_responses=t.get("supporting_responses", []),
             response_count=t.get("response_count", 0),
-            confidence=t.get("confidence", 0.5)
+            confidence=t.get("confidence", 0.5),
         )
         for t in gen_result.get("themes", [])
     ]
@@ -244,7 +258,7 @@ async def summarize(request: SummarizeRequest):
         retrieval_mode=request.mode.value,
         model_used=gen_result.get("model", settings.OPENAI_MODEL),
         latency_ms=round(total_latency, 2),
-        rouge_scores=rouge_scores
+        rouge_scores=rouge_scores,
     )
 
 
@@ -257,25 +271,25 @@ async def evaluate(request: EvaluationRequest):
     experiment = experiment_runner.run_all_modes(
         query=request.query,
         ground_truth_themes=request.ground_truth_themes,
-        top_k=request.top_k
+        top_k=request.top_k,
     )
 
     results = []
     for mode_str, r in experiment["results"].items():
-        results.append(EvaluationResult(
-            mode=mode_str,
-            rouge_1=r.get("rouge_1", 0),
-            rouge_2=r.get("rouge_2", 0),
-            rouge_l=r.get("rouge_l", 0),
-            theme_detection_accuracy=r.get("theme_accuracy", 0),
-            hallucination_score=r.get("hallucination_score", 0),
-            latency_ms=r.get("latency_ms", 0)
-        ))
+        results.append(
+            EvaluationResult(
+                mode=mode_str,
+                rouge_1=r.get("rouge_1", 0),
+                rouge_2=r.get("rouge_2", 0),
+                rouge_l=r.get("rouge_l", 0),
+                theme_detection_accuracy=r.get("theme_accuracy", 0),
+                hallucination_score=r.get("hallucination_score", 0),
+                latency_ms=r.get("latency_ms", 0),
+            )
+        )
 
     return EvaluationResponse(
-        query=request.query,
-        results=results,
-        best_mode=experiment["best_mode"]
+        query=request.query, results=results, best_mode=experiment["best_mode"]
     )
 
 
@@ -286,7 +300,11 @@ async def run_agent(query: str):
     Agent can: semantic search, SQL query, multi-step reasoning.
     """
     result = agent.run(query)
-    return {"query": query, "answer": result["answer"], "latency_ms": result["latency_ms"]}
+    return {
+        "query": query,
+        "answer": result["answer"],
+        "latency_ms": result["latency_ms"],
+    }
 
 
 @app.get("/dashboard", response_model=UsageStats, tags=["Monitoring"])
@@ -295,7 +313,9 @@ async def dashboard():
     total = usage_stats.get("total_requests", 0)
     avg_latency = 0.0
     if total > 0:
-        total_latency = sum(v for k, v in usage_stats.items() if k.startswith("latency_sum:"))
+        total_latency = sum(
+            v for k, v in usage_stats.items() if k.startswith("latency_sum:")
+        )
         avg_latency = total_latency / total
 
     requests_by_mode = {
@@ -310,7 +330,9 @@ async def dashboard():
         if k.startswith("endpoint:")
     }
 
-    recent_queries = [r["endpoint"] for r in request_log[-10:] if "search" in r["endpoint"]]
+    recent_queries = [
+        r["endpoint"] for r in request_log[-10:] if "search" in r["endpoint"]
+    ]
 
     return UsageStats(
         total_requests=total,
@@ -318,5 +340,5 @@ async def dashboard():
         avg_latency_ms=round(avg_latency, 2),
         requests_by_mode=requests_by_mode,
         requests_by_endpoint=requests_by_endpoint,
-        top_queries=recent_queries
+        top_queries=recent_queries,
     )

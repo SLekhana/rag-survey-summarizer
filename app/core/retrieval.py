@@ -37,7 +37,7 @@ def reciprocal_rank_fusion(
     dense_results: List[Tuple[str, float]],
     sparse_weight: float = None,
     dense_weight: float = None,
-    k: int = 60
+    k: int = 60,
 ) -> List[Tuple[str, float]]:
     """
     Reciprocal Rank Fusion (RRF) for combining sparse and dense results.
@@ -83,7 +83,9 @@ class BM25Retriever:
 
         # Get top-k indices
         top_indices = np.argsort(scores)[::-1][:top_k]
-        results = [(self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0]
+        results = [
+            (self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0
+        ]
         return results
 
     @property
@@ -105,7 +107,7 @@ class HybridRetriever:
         self,
         faiss_index: FAISSIndex,
         chroma_store: ChromaStore,
-        embedder: EmbeddingPipeline
+        embedder: EmbeddingPipeline,
     ):
         self.faiss = faiss_index
         self.chroma = chroma_store
@@ -117,11 +119,7 @@ class HybridRetriever:
         self.bm25.index(chunk_ids, texts)
 
     def retrieve(
-        self,
-        query: str,
-        top_k: int = None,
-        mode: str = "hybrid",
-        filters: Dict = None
+        self, query: str, top_k: int = None, mode: str = "hybrid", filters: Dict = None
     ) -> Tuple[List[RetrievedChunk], float]:
         """
         Retrieve relevant chunks.
@@ -179,20 +177,25 @@ class HybridRetriever:
             text = chunk_text_map.get(cid, "")
             if not text:
                 # Fallback to ChromaDB
-                chroma_results = self.chroma.query(query_embedding, top_k=1,
-                                                    where={"chunk_id": cid} if filters else None)
+                chroma_results = self.chroma.query(
+                    query_embedding,
+                    top_k=1,
+                    where={"chunk_id": cid} if filters else None,
+                )
                 if chroma_results:
                     text = chroma_results[0][1]
 
-            chunks.append(RetrievedChunk(
-                id=cid,
-                text=text,
-                score=score,
-                retrieval_mode=retrieval_mode,
-                sparse_rank=sparse_rank_map.get(cid),
-                dense_rank=dense_rank_map.get(cid),
-                metadata={}
-            ))
+            chunks.append(
+                RetrievedChunk(
+                    id=cid,
+                    text=text,
+                    score=score,
+                    retrieval_mode=retrieval_mode,
+                    sparse_rank=sparse_rank_map.get(cid),
+                    dense_rank=dense_rank_map.get(cid),
+                    metadata={},
+                )
+            )
 
         latency_ms = (time.perf_counter() - start) * 1000
         return chunks, latency_ms

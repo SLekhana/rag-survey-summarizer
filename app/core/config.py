@@ -13,8 +13,8 @@ class Settings(BaseSettings):
 
     # FAISS
     FAISS_INDEX_PATH: str = "data/faiss_index"
-    FAISS_NLIST: int = 50         # IVF clusters
-    FAISS_NPROBE: int = 10        # clusters to search
+    FAISS_NLIST: int = 50  # IVF clusters
+    FAISS_NPROBE: int = 10  # clusters to search
 
     # ChromaDB
     CHROMA_PERSIST_DIR: str = "data/chroma_db"

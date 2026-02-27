@@ -5,9 +5,9 @@ from datetime import datetime
 
 
 class RetrievalMode(str, Enum):
-    sparse = "sparse"       # BM25 only
-    dense = "dense"         # FAISS only
-    hybrid = "hybrid"       # BM25 + FAISS (default)
+    sparse = "sparse"  # BM25 only
+    dense = "dense"  # FAISS only
+    hybrid = "hybrid"  # BM25 + FAISS (default)
 
 
 class SurveyDocument(BaseModel):
@@ -82,7 +82,11 @@ class EvaluationRequest(BaseModel):
     query: str
     ground_truth_themes: List[str]
     top_k: int = 10
-    modes: List[RetrievalMode] = [RetrievalMode.sparse, RetrievalMode.dense, RetrievalMode.hybrid]
+    modes: List[RetrievalMode] = [
+        RetrievalMode.sparse,
+        RetrievalMode.dense,
+        RetrievalMode.hybrid,
+    ]
 
 
 class EvaluationResult(BaseModel):
