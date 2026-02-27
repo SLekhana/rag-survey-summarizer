@@ -38,6 +38,7 @@ def _load_model():
     if _cross_encoder is None:
         try:
             from sentence_transformers import CrossEncoder
+
             logger.info(f"Loading cross-encoder: {_model_name}")
             _cross_encoder = CrossEncoder(_model_name, max_length=512)
             logger.info("Cross-encoder loaded successfully")
@@ -86,18 +87,18 @@ def rerank(
     try:
         scores = model.predict(pairs, show_progress_bar=False)
     except Exception as e:
-        logger.error(f"Cross-encoder prediction failed: {e}. Returning original ranking.")
+        logger.error(
+            f"Cross-encoder prediction failed: {e}. Returning original ranking."
+        )
         return candidates[:top_k] if top_k else candidates
 
     # Sort by cross-encoder score (higher = more relevant)
-    ranked = sorted(
-        zip(ids, texts, scores.tolist()),
-        key=lambda x: x[2],
-        reverse=True
-    )
+    ranked = sorted(zip(ids, texts, scores.tolist()), key=lambda x: x[2], reverse=True)
 
     latency_ms = (time.perf_counter() - start) * 1000
-    logger.debug(f"Cross-encoder reranked {len(candidates)} candidates in {latency_ms:.1f}ms")
+    logger.debug(
+        f"Cross-encoder reranked {len(candidates)} candidates in {latency_ms:.1f}ms"
+    )
 
     result = list(ranked[:top_k] if top_k else ranked)
     return result

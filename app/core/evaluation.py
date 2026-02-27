@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 # ROUGE EVALUATION
 # ──────────────────────────────────────────────────
 
+
 def compute_rouge(hypothesis: str, references: List[str]) -> Dict[str, float]:
     """
     Compute ROUGE-1, ROUGE-2, ROUGE-L F1 scores.
@@ -65,10 +66,9 @@ def compute_rouge(hypothesis: str, references: List[str]) -> Dict[str, float]:
 # IR METRICS: Recall@k, MRR, nDCG@k
 # ──────────────────────────────────────────────────
 
+
 def compute_recall_at_k(
-    retrieved_ids: List[str],
-    relevant_ids: List[str],
-    k: int
+    retrieved_ids: List[str], relevant_ids: List[str], k: int
 ) -> float:
     """
     Recall@k = |retrieved[:k] ∩ relevant| / |relevant|
@@ -83,10 +83,7 @@ def compute_recall_at_k(
     return len(retrieved_top_k & relevant_set) / len(relevant_set)
 
 
-def compute_mrr(
-    retrieved_ids: List[str],
-    relevant_ids: List[str]
-) -> float:
+def compute_mrr(retrieved_ids: List[str], relevant_ids: List[str]) -> float:
     """
     Mean Reciprocal Rank = 1 / rank_of_first_relevant_result
 
@@ -101,9 +98,7 @@ def compute_mrr(
 
 
 def compute_ndcg_at_k(
-    retrieved_ids: List[str],
-    relevant_ids: List[str],
-    k: int
+    retrieved_ids: List[str], relevant_ids: List[str], k: int
 ) -> float:
     """
     nDCG@k = DCG@k / IDCG@k
@@ -122,16 +117,16 @@ def compute_ndcg_at_k(
         return score
 
     actual_dcg = dcg(retrieved_ids, k)
-    ideal_order = list(relevant_set) + [d for d in retrieved_ids if d not in relevant_set]
+    ideal_order = list(relevant_set) + [
+        d for d in retrieved_ids if d not in relevant_set
+    ]
     ideal_dcg = dcg(ideal_order, k)
 
     return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0.0
 
 
 def compute_ir_metrics(
-    retrieved_ids: List[str],
-    relevant_ids: List[str],
-    k_values: List[int] = None
+    retrieved_ids: List[str], relevant_ids: List[str], k_values: List[int] = None
 ) -> Dict[str, float]:
     """
     Compute full IR metric suite: Recall@k, MRR, nDCG@k for multiple k values.
@@ -145,8 +140,12 @@ def compute_ir_metrics(
     metrics: Dict[str, float] = {}
 
     for k in k_values:
-        metrics[f"recall@{k}"] = round(compute_recall_at_k(retrieved_ids, relevant_ids, k), 4)
-        metrics[f"ndcg@{k}"] = round(compute_ndcg_at_k(retrieved_ids, relevant_ids, k), 4)
+        metrics[f"recall@{k}"] = round(
+            compute_recall_at_k(retrieved_ids, relevant_ids, k), 4
+        )
+        metrics[f"ndcg@{k}"] = round(
+            compute_ndcg_at_k(retrieved_ids, relevant_ids, k), 4
+        )
 
     metrics["mrr"] = round(compute_mrr(retrieved_ids, relevant_ids), 4)
     return metrics
@@ -224,6 +223,7 @@ def run_llm_judge(
         try:
             from openai import OpenAI
             from app.core.config import settings
+
             openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         except Exception as e:
             return LLMJudgeResult(error=f"No OpenAI client: {e}")
@@ -236,11 +236,11 @@ def run_llm_judge(
             model=model,
             messages=[
                 {"role": "system", "content": LLM_JUDGE_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=0.0,
             max_tokens=300,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
 
         raw = response.choices[0].message.content
@@ -263,7 +263,7 @@ def run_llm_judge(
             overall=overall,
             reasoning=data.get("reasoning", ""),
             cost_usd=round(cost_usd, 6),
-            model=model
+            model=model,
         )
 
     except Exception as e:
@@ -277,9 +277,9 @@ def run_llm_judge(
 
 COST_PER_TOKEN = {
     "gpt-3.5-turbo": {"input": 0.0000005, "output": 0.0000015},
-    "gpt-4o-mini":   {"input": 0.00000015, "output": 0.0000006},
-    "gpt-4o":        {"input": 0.0000025, "output": 0.00001},
-    "gpt-4-turbo":   {"input": 0.00001, "output": 0.00003},
+    "gpt-4o-mini": {"input": 0.00000015, "output": 0.0000006},
+    "gpt-4o": {"input": 0.0000025, "output": 0.00001},
+    "gpt-4-turbo": {"input": 0.00001, "output": 0.00003},
 }
 
 
@@ -313,12 +313,23 @@ class CostTracker:
     def __init__(self):
         self.records: List[QueryCostRecord] = []
 
-    def record(self, model: str, input_tokens: int, output_tokens: int, endpoint: str = "summarize"):
+    def record(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        endpoint: str = "summarize",
+    ):
         cost = estimate_cost(model, input_tokens, output_tokens)
-        self.records.append(QueryCostRecord(
-            model=model, input_tokens=input_tokens,
-            output_tokens=output_tokens, cost_usd=cost, endpoint=endpoint
-        ))
+        self.records.append(
+            QueryCostRecord(
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost,
+                endpoint=endpoint,
+            )
+        )
         return cost
 
     def summary(self) -> Dict[str, Any]:
@@ -346,10 +357,10 @@ class CostTracker:
                 m: {
                     "queries": v["queries"],
                     "total_cost_usd": round(v["total_cost"], 6),
-                    "avg_tokens_per_query": round(v["total_tokens"] / v["queries"])
+                    "avg_tokens_per_query": round(v["total_tokens"] / v["queries"]),
                 }
                 for m, v in by_model.items()
-            }
+            },
         }
 
 
@@ -361,10 +372,9 @@ cost_tracker = CostTracker()
 # THEME DETECTION ACCURACY
 # ──────────────────────────────────────────────────
 
+
 def compute_theme_accuracy(
-    predicted_themes: List[str],
-    ground_truth_themes: List[str],
-    threshold: float = 0.3
+    predicted_themes: List[str], ground_truth_themes: List[str], threshold: float = 0.3
 ) -> float:
     """
     Compute theme detection accuracy via TF-IDF cosine similarity matching.
@@ -380,8 +390,8 @@ def compute_theme_accuracy(
     except Exception:
         return 0.0
 
-    pred_matrix = tfidf_matrix[:len(predicted_themes)]
-    gt_matrix = tfidf_matrix[len(predicted_themes):]
+    pred_matrix = tfidf_matrix[: len(predicted_themes)]
+    gt_matrix = tfidf_matrix[len(predicted_themes) :]
 
     sim_matrix = cosine_similarity(gt_matrix, pred_matrix)
     matched = sum(1 for row in sim_matrix if row.max() >= threshold)
@@ -394,10 +404,10 @@ def compute_theme_accuracy(
 # ──────────────────────────────────────────────────
 
 HALLUCINATION_PATTERNS = [
-    r'\b(always|never|all|every|none|everyone|nobody)\b',
-    r'\b(definitely|certainly|absolutely|guaranteed)\b',
-    r'\b(\d+%)\b',
-    r'\b(research shows|studies indicate|experts say)\b',
+    r"\b(always|never|all|every|none|everyone|nobody)\b",
+    r"\b(definitely|certainly|absolutely|guaranteed)\b",
+    r"\b(\d+%)\b",
+    r"\b(research shows|studies indicate|experts say)\b",
 ]
 
 
@@ -407,8 +417,7 @@ def compute_hallucination_score(generated_text: str, source_texts: List[str]) ->
     Combine with LLM-as-judge faithfulness for production use.
     """
     pattern_flags = sum(
-        1 for p in HALLUCINATION_PATTERNS
-        if re.search(p, generated_text, re.IGNORECASE)
+        1 for p in HALLUCINATION_PATTERNS if re.search(p, generated_text, re.IGNORECASE)
     )
     gen_words = set(generated_text.lower().split())
     source_words = set(" ".join(source_texts).lower().split())
@@ -422,6 +431,7 @@ def compute_hallucination_score(generated_text: str, source_texts: List[str]) ->
 # ──────────────────────────────────────────────────
 # TF-IDF BASELINE
 # ──────────────────────────────────────────────────
+
 
 class TFIDFBaseline:
     """TF-IDF retrieval baseline for comparison against hybrid RAG."""
@@ -446,12 +456,15 @@ class TFIDFBaseline:
         query_vec = self.vectorizer.transform([query])
         scores = cosine_similarity(query_vec, self.tfidf_matrix)[0]
         top_indices = np.argsort(scores)[::-1][:top_k]
-        return [(self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0]
+        return [
+            (self.corpus_ids[i], float(scores[i])) for i in top_indices if scores[i] > 0
+        ]
 
 
 # ──────────────────────────────────────────────────
 # EXPERIMENT RUNNER
 # ──────────────────────────────────────────────────
+
 
 @dataclass
 class ExperimentResult:
@@ -488,8 +501,14 @@ class ExperimentRunner:
     Key metric: ≥20% theme accuracy improvement over TF-IDF baseline.
     """
 
-    def __init__(self, retriever, generator, tfidf_baseline: TFIDFBaseline,
-                 openai_client=None, enable_llm_judge: bool = False):
+    def __init__(
+        self,
+        retriever,
+        generator,
+        tfidf_baseline: TFIDFBaseline,
+        openai_client=None,
+        enable_llm_judge: bool = False,
+    ):
         self.retriever = retriever
         self.generator = generator
         self.tfidf = tfidf_baseline
@@ -503,11 +522,13 @@ class ExperimentRunner:
         ground_truth_summary: Optional[str] = None,
         relevant_chunk_ids: Optional[List[str]] = None,
         top_k: int = 10,
-        mode: str = "hybrid"
+        mode: str = "hybrid",
     ) -> ExperimentResult:
         start = time.perf_counter()
 
-        chunks, retrieval_latency = self.retriever.retrieve(query, top_k=top_k, mode=mode)
+        chunks, retrieval_latency = self.retriever.retrieve(
+            query, top_k=top_k, mode=mode
+        )
         source_texts = [c.text for c in chunks]
         retrieved_ids = [c.id for c in chunks]
 
@@ -519,25 +540,31 @@ class ExperimentRunner:
 
         rouge = compute_rouge(
             executive_summary,
-            [ground_truth_summary] if ground_truth_summary else ground_truth_themes
+            [ground_truth_summary] if ground_truth_summary else ground_truth_themes,
         )
         theme_acc = compute_theme_accuracy(predicted_themes, ground_truth_themes)
         hallucination = compute_hallucination_score(executive_summary, source_texts)
 
         ir_metrics = {}
         if relevant_chunk_ids:
-            ir_metrics = compute_ir_metrics(retrieved_ids, relevant_chunk_ids, k_values=[1, 3, 5, 10])
+            ir_metrics = compute_ir_metrics(
+                retrieved_ids, relevant_chunk_ids, k_values=[1, 3, 5, 10]
+            )
 
         judge_result = None
         if self.enable_llm_judge and executive_summary:
             judge_result = run_llm_judge(
-                query=query, summary=executive_summary,
-                source_texts=source_texts, openai_client=self.openai_client
+                query=query,
+                summary=executive_summary,
+                source_texts=source_texts,
+                openai_client=self.openai_client,
             )
 
         return ExperimentResult(
             mode=mode,
-            rouge_1=rouge["rouge1"], rouge_2=rouge["rouge2"], rouge_l=rouge["rougeL"],
+            rouge_1=rouge["rouge1"],
+            rouge_2=rouge["rouge2"],
+            rouge_l=rouge["rougeL"],
             theme_accuracy=theme_acc,
             hallucination_score=hallucination,
             latency_ms=latency_ms,
@@ -562,7 +589,7 @@ class ExperimentRunner:
         ground_truth_themes: List[str],
         ground_truth_summary: Optional[str] = None,
         relevant_chunk_ids: Optional[List[str]] = None,
-        top_k: int = 10
+        top_k: int = 10,
     ) -> Dict[str, Any]:
         modes = ["sparse", "dense", "hybrid"]
         results = {}
@@ -570,8 +597,12 @@ class ExperimentRunner:
         for mode in modes:
             try:
                 result = self.run_single(
-                    query, ground_truth_themes, ground_truth_summary,
-                    relevant_chunk_ids, top_k, mode
+                    query,
+                    ground_truth_themes,
+                    ground_truth_summary,
+                    relevant_chunk_ids,
+                    top_k,
+                    mode,
                 )
                 results[mode] = result
                 logger.info(
@@ -588,7 +619,8 @@ class ExperimentRunner:
             tfidf_results = self.tfidf.search(query, top_k=top_k)
             tfidf_texts = [
                 self.tfidf.corpus_texts[self.tfidf.corpus_ids.index(cid)]
-                for cid, _ in tfidf_results if cid in self.tfidf.corpus_ids
+                for cid, _ in tfidf_results
+                if cid in self.tfidf.corpus_ids
             ]
             tfidf_ids = [cid for cid, _ in tfidf_results]
             tfidf_theme_acc = compute_theme_accuracy(
@@ -596,13 +628,18 @@ class ExperimentRunner:
             )
             tfidf_ir = {}
             if relevant_chunk_ids:
-                tfidf_ir = compute_ir_metrics(tfidf_ids, relevant_chunk_ids, k_values=[1, 3, 5, 10])
+                tfidf_ir = compute_ir_metrics(
+                    tfidf_ids, relevant_chunk_ids, k_values=[1, 3, 5, 10]
+                )
 
             results["tfidf_baseline"] = ExperimentResult(
                 mode="tfidf_baseline",
-                rouge_1=0.0, rouge_2=0.0, rouge_l=0.0,
+                rouge_1=0.0,
+                rouge_2=0.0,
+                rouge_l=0.0,
                 theme_accuracy=tfidf_theme_acc,
-                hallucination_score=0.0, latency_ms=0.0,
+                hallucination_score=0.0,
+                latency_ms=0.0,
                 retrieved_count=len(tfidf_results),
                 recall_at_1=tfidf_ir.get("recall@1", 0.0),
                 recall_at_5=tfidf_ir.get("recall@5", 0.0),
@@ -615,11 +652,15 @@ class ExperimentRunner:
         best_mode = max(
             [m for m in modes if m in results],
             key=lambda m: results[m].theme_accuracy,
-            default="hybrid"
+            default="hybrid",
         )
 
-        baseline_acc = results.get("tfidf_baseline", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)).theme_accuracy
-        hybrid_acc = results.get("hybrid", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)).theme_accuracy
+        baseline_acc = results.get(
+            "tfidf_baseline", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)
+        ).theme_accuracy
+        hybrid_acc = results.get(
+            "hybrid", ExperimentResult("", 0, 0, 0, 0, 0, 0, 0)
+        ).theme_accuracy
         improvement = ((hybrid_acc - baseline_acc) / max(baseline_acc, 0.01)) * 100
 
         return {
@@ -627,5 +668,5 @@ class ExperimentRunner:
             "results": {k: vars(v) for k, v in results.items()},
             "best_mode": best_mode,
             "improvement_over_tfidf_pct": round(improvement, 1),
-            "target_met": improvement >= 20.0
+            "target_met": improvement >= 20.0,
         }

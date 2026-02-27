@@ -5,9 +5,9 @@ from datetime import datetime
 
 
 class RetrievalMode(str, Enum):
-    sparse = "sparse"       # BM25 only
-    dense = "dense"         # FAISS only
-    hybrid = "hybrid"       # BM25 + FAISS (default)
+    sparse = "sparse"  # BM25 only
+    dense = "dense"  # FAISS only
+    hybrid = "hybrid"  # BM25 + FAISS (default)
 
 
 class SurveyDocument(BaseModel):
@@ -82,9 +82,17 @@ class EvaluationRequest(BaseModel):
     query: str
     ground_truth_themes: List[str]
     top_k: int = 10
-    modes: List[RetrievalMode] = [RetrievalMode.sparse, RetrievalMode.dense, RetrievalMode.hybrid]
-    relevant_chunk_ids: Optional[List[str]] = None  # for IR metrics (Recall@k, MRR, nDCG)
-    enable_llm_judge: bool = False  # set True to enable LLM-as-judge scoring (~$0.001/call)
+    modes: List[RetrievalMode] = [
+        RetrievalMode.sparse,
+        RetrievalMode.dense,
+        RetrievalMode.hybrid,
+    ]
+    relevant_chunk_ids: Optional[List[str]] = (
+        None  # for IR metrics (Recall@k, MRR, nDCG)
+    )
+    enable_llm_judge: bool = (
+        False  # set True to enable LLM-as-judge scoring (~$0.001/call)
+    )
 
 
 class EvaluationResult(BaseModel):
@@ -101,9 +109,9 @@ class EvaluationResult(BaseModel):
     recall_at_3: float = 0.0
     recall_at_5: float = 0.0
     recall_at_10: float = 0.0
-    mrr: float = 0.0        # Mean Reciprocal Rank
+    mrr: float = 0.0  # Mean Reciprocal Rank
     ndcg_at_5: float = 0.0  # nDCG@5
-    ndcg_at_10: float = 0.0 # nDCG@10
+    ndcg_at_10: float = 0.0  # nDCG@10
     # LLM-as-judge (new) — faithfulness, relevance, coherence
     llm_faithfulness: Optional[float] = None
     llm_relevance: Optional[float] = None
