@@ -9,14 +9,13 @@ LLM Generation Layer
 import time
 import logging
 import re
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
 from app.core.retrieval import RetrievedChunk

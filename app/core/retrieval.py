@@ -8,7 +8,6 @@ Hybrid Retrieval Engine
 
 import time
 import logging
-import math
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 

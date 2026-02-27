@@ -6,10 +6,9 @@ Indexing Layer
 """
 
 import os
-import json
 import logging
 import pickle
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
 import numpy as np

@@ -6,7 +6,6 @@ Ingestion Pipeline
 - Batch processing
 """
 
-import time
 import hashlib
 import logging
 from typing import List, Dict, Any, Tuple
