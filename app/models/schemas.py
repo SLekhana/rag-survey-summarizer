@@ -5,9 +5,9 @@ from datetime import datetime
 
 
 class RetrievalMode(str, Enum):
-    sparse = "sparse"  # BM25 only
-    dense = "dense"  # FAISS only
-    hybrid = "hybrid"  # BM25 + FAISS (default)
+    sparse = "sparse"       # BM25 only
+    dense = "dense"         # FAISS only
+    hybrid = "hybrid"       # BM25 + FAISS (default)
 
 
 class SurveyDocument(BaseModel):
@@ -82,27 +82,42 @@ class EvaluationRequest(BaseModel):
     query: str
     ground_truth_themes: List[str]
     top_k: int = 10
-    modes: List[RetrievalMode] = [
-        RetrievalMode.sparse,
-        RetrievalMode.dense,
-        RetrievalMode.hybrid,
-    ]
+    modes: List[RetrievalMode] = [RetrievalMode.sparse, RetrievalMode.dense, RetrievalMode.hybrid]
+    relevant_chunk_ids: Optional[List[str]] = None  # for IR metrics (Recall@k, MRR, nDCG)
+    enable_llm_judge: bool = False  # set True to enable LLM-as-judge scoring (~$0.001/call)
 
 
 class EvaluationResult(BaseModel):
     mode: str
+    # Classic NLP metrics
     rouge_1: float
     rouge_2: float
     rouge_l: float
     theme_detection_accuracy: float
     hallucination_score: float
     latency_ms: float
+    # IR metrics (new) — measure retrieval quality directly
+    recall_at_1: float = 0.0
+    recall_at_3: float = 0.0
+    recall_at_5: float = 0.0
+    recall_at_10: float = 0.0
+    mrr: float = 0.0        # Mean Reciprocal Rank
+    ndcg_at_5: float = 0.0  # nDCG@5
+    ndcg_at_10: float = 0.0 # nDCG@10
+    # LLM-as-judge (new) — faithfulness, relevance, coherence
+    llm_faithfulness: Optional[float] = None
+    llm_relevance: Optional[float] = None
+    llm_coherence: Optional[float] = None
+    llm_overall: Optional[float] = None
+    llm_cost_usd: float = 0.0
 
 
 class EvaluationResponse(BaseModel):
     query: str
     results: List[EvaluationResult]
     best_mode: str
+    improvement_over_tfidf_pct: float = 0.0
+    target_met: bool = False
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

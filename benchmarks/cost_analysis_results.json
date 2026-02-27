@@ -1,0 +1,70 @@
+{
+  "token_estimates": {
+    "system_prompt_tokens": 200,
+    "few_shot_tokens": 300,
+    "context_tokens_per_chunk": 60,
+    "chunks_retrieved": 10,
+    "query_tokens": 20,
+    "output_tokens": 350
+  },
+  "cost_analysis": {
+    "gpt-3.5-turbo": {
+      "model": "gpt-3.5-turbo",
+      "input_tokens": 1120,
+      "output_tokens": 350,
+      "total_tokens": 1470,
+      "cost_per_query_usd": 0.001085,
+      "cost_per_100_queries_usd": 0.1085,
+      "cost_per_1k_queries_usd": 1.085,
+      "cost_per_10k_queries_usd": 10.85,
+      "cost_per_100k_queries_usd": 108.5,
+      "notes": "Fast, cheap. Good for high-volume low-stakes summarization."
+    },
+    "gpt-4o-mini": {
+      "model": "gpt-4o-mini",
+      "input_tokens": 1120,
+      "output_tokens": 350,
+      "total_tokens": 1470,
+      "cost_per_query_usd": 0.000378,
+      "cost_per_100_queries_usd": 0.0378,
+      "cost_per_1k_queries_usd": 0.378,
+      "cost_per_10k_queries_usd": 3.78,
+      "cost_per_100k_queries_usd": 37.8,
+      "notes": "Best value. Recommended default for production."
+    },
+    "gpt-4o": {
+      "model": "gpt-4o",
+      "input_tokens": 1120,
+      "output_tokens": 350,
+      "total_tokens": 1470,
+      "cost_per_query_usd": 0.0063,
+      "cost_per_100_queries_usd": 0.63,
+      "cost_per_1k_queries_usd": 6.3,
+      "cost_per_10k_queries_usd": 63.0,
+      "cost_per_100k_queries_usd": 630.0,
+      "notes": "Highest quality. Use for high-stakes executive reports."
+    },
+    "gpt-4-turbo": {
+      "model": "gpt-4-turbo",
+      "input_tokens": 1120,
+      "output_tokens": 350,
+      "total_tokens": 1470,
+      "cost_per_query_usd": 0.0217,
+      "cost_per_100_queries_usd": 2.17,
+      "cost_per_1k_queries_usd": 21.7,
+      "cost_per_10k_queries_usd": 217.0,
+      "cost_per_100k_queries_usd": 2170.0,
+      "notes": "Use only if gpt-4o-mini quality insufficient."
+    }
+  },
+  "caching_impact": {
+    "cache_hit_rate": 0.4,
+    "gpt4o_mini_per_1k_uncached": 0.378,
+    "gpt4o_mini_per_1k_with_cache": 0.2268
+  },
+  "weekly_batch_estimate": {
+    "queries": 100000,
+    "gpt4o_mini_usd": 22.68,
+    "annual_usd": 1179.0
+  }
+}
