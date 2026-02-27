@@ -240,6 +240,4 @@ Input and output validation to ensure reliable production behavior:
 
 ---
 
-## 📄 License
 
-MIT License — see [LICENSE](LICENSE)
