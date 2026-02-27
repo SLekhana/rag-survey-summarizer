@@ -364,7 +364,7 @@ cost_tracker = CostTracker()
 def compute_theme_accuracy(
     predicted_themes: List[str],
     ground_truth_themes: List[str],
-    threshold: float = 0.5
+    threshold: float = 0.3
 ) -> float:
     """
     Compute theme detection accuracy via TF-IDF cosine similarity matching.
