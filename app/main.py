@@ -15,9 +15,8 @@ from contextlib import asynccontextmanager
 from collections import defaultdict
 from typing import Dict, List
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.models.schemas import (

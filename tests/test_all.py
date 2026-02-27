@@ -6,10 +6,9 @@ Test Suite
 - test_api: FastAPI endpoints
 """
 
-import json
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 
