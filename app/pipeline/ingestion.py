@@ -31,36 +31,22 @@ class Chunk:
 
 
 def chunk_text(text: str, chunk_size: int = None, overlap: int = None) -> List[str]:
-    """
-    Chunk text with sliding window overlap.
-    Tries to split on sentence boundaries first.
-    """
+    """Chunk text with sliding window overlap (word-level)."""
     chunk_size = chunk_size or settings.CHUNK_SIZE
     overlap = overlap or settings.CHUNK_OVERLAP
 
-    # Split on sentence boundaries
-    import re
-
-    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    words = text.strip().split()
+    if len(words) <= chunk_size:
+        return [text]
 
     chunks = []
-    current_chunk = []
-    current_len = 0
-
-    for sentence in sentences:
-        sentence_len = len(sentence.split())
-        if current_len + sentence_len > chunk_size and current_chunk:
-            chunks.append(" ".join(current_chunk))
-            # Keep overlap
-            overlap_words = " ".join(current_chunk).split()[-overlap:]
-            current_chunk = overlap_words + sentence.split()
-            current_len = len(current_chunk)
-        else:
-            current_chunk.extend(sentence.split())
-            current_len += sentence_len
-
-    if current_chunk:
-        chunks.append(" ".join(current_chunk))
+    start = 0
+    while start < len(words):
+        end = min(start + chunk_size, len(words))
+        chunks.append(" ".join(words[start:end]))
+        if end == len(words):
+            break
+        start += chunk_size - overlap
 
     return chunks if chunks else [text]
 
